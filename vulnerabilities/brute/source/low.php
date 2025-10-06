@@ -1,32 +1,39 @@
 <?php
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['Login'])) {
+    // Database connection
+    $conn = new mysqli('localhost', 'username', 'password', 'database');
+    
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
 
-if( isset( $_GET[ 'Login' ] ) ) {
-	// Get username
-	$user = $_GET[ 'username' ];
+    // Get and sanitize input
+    $user = $_POST['username'];
+    $pass = $_POST['password'];
 
-	// Get password
-	$pass = $_GET[ 'password' ];
-	$pass = md5( $pass );
+    // Prepare statement
+    $stmt = $conn->prepare("SELECT * FROM users WHERE user = ?");
+    $stmt->bind_param("s", $user);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-	// Check the database
-	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+    if ($result && $result->num_rows === 1) {
+        $row = $result->fetch_assoc();
 
-	if( $result && mysqli_num_rows( $result ) == 1 ) {
-		// Get users details
-		$row    = mysqli_fetch_assoc( $result );
-		$avatar = $row["avatar"];
+        // Verify password (assuming password is hashed with password_hash())
+        if (password_verify($pass, $row['password'])) {
+            $avatar = htmlspecialchars($row["avatar"], ENT_QUOTES, 'UTF-8');
+            $userSafe = htmlspecialchars($user, ENT_QUOTES, 'UTF-8');
+            echo "<p>Welcome to the password protected area {$userSafe}</p>";
+            echo "<img src=\"{$avatar}\" />";
+        } else {
+            echo "<pre><br />Username and/or password incorrect.</pre>";
+        }
+    } else {
+        echo "<pre><br />Username and/or password incorrect.</pre>";
+    }
 
-		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
-		$html .= "<img src=\"{$avatar}\" />";
-	}
-	else {
-		// Login failed
-		$html .= "<pre><br />Username and/or password incorrect.</pre>";
-	}
-
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+    $stmt->close();
+    $conn->close();
 }
-
 ?>
